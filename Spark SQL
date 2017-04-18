@@ -1,0 +1,98 @@
+Q2. For this question, please make use of the attached JSON file (tweets.json). Make use of Spark SQL library to answer the following questions:
+
+#a)Save the dataset as a DataFrame, and print the schema
+#Read the json file
+tweets=sqlContext.read.json("file:///home/cloudera/tweets.json")
+#Register temporary table
+tweets.registerTempTable("tweets")
+#Display the schema
+tweets.printSchema()
+#############################################################################################################################
+#b)Get all of the tweets made by a user
+sqlContext.sql("select *  from tweets where user='Cas'").show()
+#############################################################################################################################
+
+#############################################################################################################################
+#c)Find count of all tweets by each user user
+sqlContext.sql("select user,count(4) as tweets from tweets group by user").show()
+#############################################################################################################################
+
+#############################################################################################################################
+#d) Get a list of all of the people who are mentioned in tweets
+people=sqlContext.sql("select text from tweets where text like '%@%'")
+#import re module to use regex function
+import re
+#Regex to filter out string after '@'
+reg=re.compile("(?:(?<=\s)|)@(\w*[A-Za-z_]+\w*)")
+#Find all the user names
+list_people=people.rdd.map(lambda l:reg.findall(str(l))).collect()
+#Store the user names in a list
+list_of_people=list()
+for i in list_people:
+	for j in i:
+		list_of_people.append(j)
+#############################################################################################################################
+
+#############################################################################################################################
+#e)Count the number of time each person is mentioned in the entire dataset of tweets
+for ppl in list_of_people:
+	print ppl,list_of_people.count(ppl)
+#############################################################################################################################
+
+#############################################################################################################################
+#f)Give top 50 users who are mentioned the most
+sort_people={}
+for i in list_of_people:
+	sort_people[i]=list_of_people.count(i)
+#Sort the list in descending order
+sort_top_50=sorted(sort_people.items(),key=lambda x:x[1],reverse=True)
+#Get top 50 in the list
+top_50=list()
+k=0
+for j in sort_top_50:
+	if k<=50:
+		top_50.append(j)
+	k=k+1
+#Print top 50 in the list
+top_50
+#############################################################################################################################
+
+#############################################################################################################################
+#g)Get a list of all hashtags mentioned in the dataset
+hashtags=sqlContext.sql("select text from tweets where text like '%#%'")
+#Regex to get strings after '#'
+reg=re.compile("(?:(?<=\s)|)#(\w*[A-Za-z_]+\w*)")
+#Get all the hashtags
+all_hashtags=hashtags.rdd.map(lambda l:reg.findall(str(l))).collect()
+#Store all the hashtags to a list
+list_of_hashtags=list()
+for i in all_hashtags:
+	for j in i:
+		list_of_hashtags.append(j)
+#############################################################################################################################
+
+#############################################################################################################################
+#h)Find how many times each hashtag is mentioned in the dataset
+for hash in list_of_hashtags:
+	print hash,list_of_hashtags.count(hash)
+#############################################################################################################################
+
+#############################################################################################################################
+#i) Get a list of all of the people who are located in a particular city 
+list_user_city=sqlContext.sql("select user from tweets where upper(place) like upper('%boston%')").rdd.collect()
+for i in list_user_city:
+    print i
+#############################################################################################################################
+
+#############################################################################################################################
+#j) Get country wise distribution of users, and find out which country ranks highest in terms of number of tweets, and number of users
+sqlContext.sql("select country,user,count(text) Number_of_Tweets from tweets group by user,country order by Number_of_Tweets desc").show(1)
+
+sqlContext.sql("select country,count(user) Number_of_Users from tweets group by country order by Number_of_Users desc").show(1)
+#############################################################################################################################
+
+#############################################################################################################################
+#k) Find out number of tweets where a user is from France and mentions Paris in their tweets.
+
+sqlContext.sql("select user,count(text) Number_of_tweets from tweets where country='France' and UPPER(text) like UPPER('%paris%') group by user").show()
+#############################################################################################################################
