@@ -1,0 +1,92 @@
+Spark Core Assignment Dataset Description:
+Q1. Consider the two data files (users.csv, transactions.csv). Users file has the following fields:
+a) UserID
+b) EmailID
+c) NativeLanguage
+d) Location
+Transactions file has the following fields:
+a) Transaction_ID
+b) Product_ID
+c) UserID
+d) Price
+e) Product_Description
+
+
+Questionnaire:
+By making use of Spark Core (i.e. without using Spark SQL) find out:
+a) Count of unique locations where each product is sold.
+b) Find out products bought by each user.
+c) Total spending done by each user on each product.
+
+Below is the PySpark codes for the above set of related questions:
+
+#Establishing PySpark Connection
+from pyspark import SparkConf, SparkContext
+import sys
+
+conf = SparkConf().setMaster("local").setAppName("Assignment1")
+sc = SparkContext(conf = conf)
+
+#############################################################################################################################
+#Read the csv files
+users= sc.textFile('file:///home/cloudera/users.csv')
+transactions=sc.textFile('file:///home/cloudera/transactions.csv')
+
+#############################################################################################################################
+#Select specific columns from the read files 
+rdd_user = users.map(lambda l: l.split(",")).map(lambda l :(l[0],l[3]))
+rdd_transaction=transactions.map(lambda l: l.split(",")).map(lambda l :(l[2],l[4]))
+
+#############################################################################################################################
+#Function to generate key value pair
+def generatekeyvalue (a):
+	key = a[1]
+    value = a[0]    
+    return (key,value)
+#############################################################################################################################
+
+#############################################################################################################################
+#Question 1 a)
+#Merge the two rdds and form the distinct key value pair
+merged_rdd=rdd_user.join(rdd_transaction).values().map(generatekeyvalue).distinct().countByKey()
+
+print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+print merged_rdd
+print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+#############################################################################################################################
+
+#############################################################################################################################
+#Question 1 b)
+#Get product lists group by keys
+products = transactions.map(lambda l: l.split(",")).map(lambda l:(l[2],l[4])).groupByKey()
+print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+print(list((product[0], list(product[1])) for product in products.collect()))
+print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+#############################################################################################################################
+
+#############################################################################################################################
+#Question 1c)
+#Get distinct product id and price from the transaction file
+price = transactions.map(lambda l: l.split(",")).map(lambda l:(l[1],l[3])).distinct()
+
+#Get product id and user id
+user = transactions.map(lambda l: l.split(",")).map(lambda l:(l[1],l[2]))
+
+#Join price and use
+user_price_product = price.join(user)
+
+#Define key value as to how the output should appear i.e, Usr id followed by product id and product price
+def getmappings (val):
+    product_id = val[0]
+    key_value = val[1]
+    product_price = key_value[0]
+    user_id = key_value[1]
+    return (user_id,(product_id,product_price))
+
+#Find total spendings of each user on each product
+total_spendings = user_price_product.map(getmappings).sortByKey().collect()
+print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+print total_spendings
+print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+#############################################################################################################################
+
